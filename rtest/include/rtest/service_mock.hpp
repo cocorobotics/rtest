@@ -171,7 +171,8 @@ public:
   {
     auto mock = rtest::StaticMocksRegistry::instance().getMock(this).lock();
     if (mock) {
-      std::static_pointer_cast<rtest::ServiceMock<ServiceT>>(mock)->send_response(request_header, response);
+      std::static_pointer_cast<rtest::ServiceMock<ServiceT>>(mock)->send_response(
+        request_header, response);
     }
   }
 

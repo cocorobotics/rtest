@@ -167,6 +167,15 @@ public:
     }
   }
 
+  void send_response(rmw_request_id_t & request_header, typename ServiceT::Response & response)
+  {
+    auto mock = rtest::StaticMocksRegistry::instance().getMock(this).lock();
+    if (mock) {
+      std::static_pointer_cast<rtest::ServiceMock<ServiceT>>(mock)->send_response(
+        request_header, response);
+    }
+  }
+
   std::shared_ptr<typename ServiceT::Response> handle_request(
     std::shared_ptr<rmw_request_id_t> request_header,
     std::shared_ptr<typename ServiceT::Request> typed_request)

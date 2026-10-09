@@ -50,11 +50,10 @@ TEST_F(ServiceProviderTest, WhenServiceRequestReceived_ThenStateIsUpdated)
   expected_response.success = true;
   expected_response.message = "State updated successfully";
 
-  // Set up expectation that service will handle request and set proper response
-  EXPECT_CALL(*service, send_response(*request_header, expected_response));
-
   // Simulate service call
-  service->handle_request(request_header, request);
+  auto response = service->handle_request(request_header, request);
+  ASSERT_TRUE(response);
+  EXPECT_EQ(*response, expected_response);
 
   // The state should be updated to true
   EXPECT_TRUE(node->getState());
@@ -86,11 +85,10 @@ TEST_F(ServiceProviderTest, WhenServiceIsLocked_ThenStateIsNotUpdated)
   expected_response.success = false;
   expected_response.message = "Service is locked, cannot update state";
 
-  // Set up expectation that service will handle request and set proper response
-  EXPECT_CALL(*service, send_response(*request_header, expected_response));
-
   // Simulate service call
-  service->handle_request(request_header, request);
+  auto response = service->handle_request(request_header, request);
+  ASSERT_TRUE(response);
+  EXPECT_EQ(*response, expected_response);
 
   // The state should not be updated because the service was locked
   EXPECT_FALSE(node->getState());
@@ -102,11 +100,10 @@ TEST_F(ServiceProviderTest, WhenServiceIsLocked_ThenStateIsNotUpdated)
   expected_response.success = true;
   expected_response.message = "State updated successfully";
 
-  // Set up expectation that service will handle request and set proper response
-  EXPECT_CALL(*service, send_response(*request_header, expected_response));
-
   // Simulate service call again
-  service->handle_request(request_header, request);
+  response = service->handle_request(request_header, request);
+  ASSERT_TRUE(response);
+  EXPECT_EQ(*response, expected_response);
 
   // The state should be updated to true
   EXPECT_TRUE(node->getState());

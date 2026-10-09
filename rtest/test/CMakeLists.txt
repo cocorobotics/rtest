@@ -11,6 +11,7 @@ find_package(ament_cmake_gmock REQUIRED)
 add_executable(${PROJECT_NAME}-test
   main.cpp
   service_client_pending_requests_test.cpp
+  service_mock_fork_extensions_test.cpp
   static_registry_stale_entry_test.cpp
 )
 

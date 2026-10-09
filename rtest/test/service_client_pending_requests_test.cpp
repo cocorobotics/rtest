@@ -95,9 +95,10 @@ TEST_F(ServiceClientPendingRequestsTest, WhenRequestTimesOut_ThenHelperRemovesIt
 
   // The promise outlives the call, so the future never becomes ready: a timed out request.
   std::promise<Types::SharedResponse> never_fulfilled;
-  EXPECT_CALL(*client_mock, async_send_request(::testing::_)).WillOnce([&never_fulfilled](auto) {
-    return Types::FutureResponseAndId(never_fulfilled.get_future(), 42);
-  });
+  EXPECT_CALL(*client_mock, async_send_request_mocked(::testing::_))
+    .WillOnce([&never_fulfilled](auto) {
+      return Types::FutureResponseAndId(never_fulfilled.get_future(), 42);
+    });
   EXPECT_CALL(*client_mock, remove_pending_request(42)).WillOnce(Return(true));
 
   auto response =
@@ -110,7 +111,7 @@ TEST_F(ServiceClientPendingRequestsTest, WhenRequestCompletes_ThenNothingIsRemov
   auto mock = rtest::findServiceClient<Empty>(node_, "pending_requests_service");
   ASSERT_TRUE(mock);
 
-  EXPECT_CALL(*mock, async_send_request(::testing::_)).WillOnce([](auto) {
+  EXPECT_CALL(*mock, async_send_request_mocked(::testing::_)).WillOnce([](auto) {
     std::promise<Types::SharedResponse> promise;
     promise.set_value(std::make_shared<Empty::Response>());
     return Types::FutureResponseAndId(promise.get_future(), 1);

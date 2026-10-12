@@ -88,11 +88,15 @@ else()
   )
 endif()
 
+# gmock only for its headers: linking it would copy the static libgmock/libgtest (the only
+# form Ubuntu ships) into this shared library, and a test executable linking its own copy
+# then aborts at exit in gtest's ThreadLocal teardown (pthread_key_delete fails with EINVAL).
+# The gmock symbols resolve against the one copy in the test executable.
 target_link_libraries(rtest_common PUBLIC
   rcl_action::rcl_action
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
-  GTest::gmock
+  $<COMPILE_ONLY:GTest::gmock>
 )
 
 ament_export_dependencies(

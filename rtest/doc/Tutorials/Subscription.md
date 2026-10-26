@@ -136,7 +136,7 @@ Open the `package.xml` and add the `rtest` test dependency:
 </package>
 ```
 
-**NOTE** Currently `rtest` supports writing tests with GTest/GMock only. There's no need to add that dependencies explicitly.
+**NOTE** Currently `rtest` supports writing tests with GTest/GMock only. There's no need to add that dependencies explicitly. Do **not** add `GTest::gmock` / `GTest::gtest` to your test's `target_link_libraries`: they are already provided transitively through the `rtest::*` targets. With a static GTest (for example Ubuntu's `libgmock-dev`), listing them explicitly puts the static libraries before `librtest_common.so` on the link line, so the test executable gets its own copy of the GMock globals next to the one in `librtest_common.so`. The test run then aborts at exit with `pthread_key_delete(key_) failed with error 22`.
 
 #### 4.2 Implement a simple unit test
 
@@ -200,7 +200,8 @@ Create the `test/CMakeLists.txt` file:
 find_package(rtest REQUIRED)
 find_package(ament_cmake_gmock REQUIRED)
 
-ament_add_gmock(${PROJECT_NAME}-test
+# Use add_executable + `ament_add_gmock_test` instead of `ament_add_gmock`.
+add_executable(${PROJECT_NAME}-test
     main.cpp
     ${CMAKE_SOURCE_DIR}/src/subscriber.cpp
     subscriber_test.cpp
@@ -216,6 +217,8 @@ target_link_libraries(${PROJECT_NAME}-test
   rclcpp_components::component
   ${std_msgs_TARGETS}
 )
+
+ament_add_gmock_test(${PROJECT_NAME}-test)
 ```
 
 Update the root `CMakeLists.txt` with:

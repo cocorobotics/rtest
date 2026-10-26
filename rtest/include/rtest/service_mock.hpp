@@ -47,21 +47,6 @@
 #include "rclcpp/visibility_control.hpp"
 #include "rclcpp/exceptions.hpp"
 
-#define TEST_TOOLS_MAKE_SHARED_DEFINITION(...)                             \
-  template <typename... Args>                                              \
-  static std::shared_ptr<__VA_ARGS__> make_shared(Args &&... args)         \
-  {                                                                        \
-    auto ptr = std::make_shared<__VA_ARGS__>(std::forward<Args>(args)...); \
-    ptr->post_init_setup();                                                \
-    return ptr;                                                            \
-  }
-
-#define TEST_TOOLS_SMART_PTR_DEFINITIONS(...) \
-  __RCLCPP_SHARED_PTR_ALIAS(__VA_ARGS__)      \
-  __RCLCPP_WEAK_PTR_ALIAS(__VA_ARGS__)        \
-  __RCLCPP_UNIQUE_PTR_ALIAS(__VA_ARGS__)      \
-  TEST_TOOLS_MAKE_SHARED_DEFINITION(__VA_ARGS__)
-
 namespace rtest
 {
 
@@ -89,7 +74,7 @@ public:
   }
   ~ServiceMock() { StaticMocksRegistry::instance().detachMock(service_); }
 
-  TEST_TOOLS_SMART_PTR_DEFINITIONS(ServiceMock<ServiceT>)
+  RCLCPP_SMART_PTR_ALIASES_ONLY(ServiceMock<ServiceT>)
 
   MOCK_METHOD(void, send_response, (rmw_request_id_t &, typename ServiceT::Response &), ());
 
@@ -123,23 +108,17 @@ public:
     std::shared_ptr<rcl_node_t> node_handle,
     const std::string & service_name,
     AnyServiceCallback<ServiceT> callback,
-    rcl_service_options_t & service_options)
-  : ServiceBase(node_handle), service_name_(service_name), any_callback_(callback)
+    rcl_service_options_t &)
+  : ServiceBase(node_handle), any_callback_(callback), service_name_(service_name)
   {
-    const char * name = rcl_node_get_name(node_handle.get());
-    const char * namespace_ = rcl_node_get_namespace(node_handle.get());
-    if (std::string(namespace_) == "/") {
-      fully_qualified_name_ = "/" + std::string(name);
-    } else {
-      fully_qualified_name_ = std::string(namespace_) + "/" + std::string(name);
-    }
+    node_id_ = node_handle;
   }
 
   /// Called after construction to continue setup that requires shared_from_this().
   void post_init_setup()
   {
     rtest::StaticMocksRegistry::instance().registerService<ServiceT>(
-      fully_qualified_name_, service_name_, this->weak_from_this());
+      node_id_, service_name_, this->weak_from_this());
   }
 
   std::shared_ptr<void> create_request() override
@@ -153,8 +132,13 @@ public:
   }
 
   void handle_request(
+#if RTEST_ROS_VERSION >= RTEST_ROS_LYRICAL
+    const std::shared_ptr<rmw_request_id_t> & request_header,
+    const std::shared_ptr<void> & request) override
+#else
     std::shared_ptr<rmw_request_id_t> request_header,
     std::shared_ptr<void> request) override
+#endif
   {
     auto typed_request = std::static_pointer_cast<typename ServiceT::Request>(request);
     auto response = handle_request(request_header, typed_request);
@@ -189,7 +173,7 @@ private:
   AnyServiceCallback<ServiceT> any_callback_;
 
 private:
-  std::string fully_qualified_name_;
+  rtest::StaticMocksRegistry::NodeId node_id_;
   std::string service_name_;
 };
 
@@ -198,14 +182,19 @@ private:
 namespace rtest
 {
 
-template <typename ServiceT>
+template <typename ServiceT, typename NodeT>
 std::shared_ptr<ServiceMock<ServiceT>> findService(
-  const std::string & fullyQualifiedNodeName,
-  const std::string & serviceName)
+  const std::shared_ptr<NodeT> & node,
+  std::string serviceName)
 {
+  if (!serviceName.empty() && serviceName.front() == '/') {
+    serviceName.erase(0, 1);
+  }
   std::shared_ptr<ServiceMock<ServiceT>> service_mock{};
   auto service_base =
-    StaticMocksRegistry::instance().getService(fullyQualifiedNodeName, serviceName).lock();
+    StaticMocksRegistry::instance()
+      .getService(node->get_node_base_interface()->get_shared_rcl_node_handle(), serviceName)
+      .lock();
 
   if (service_base) {
     if (StaticMocksRegistry::instance().getMock(service_base.get()).lock()) {
@@ -219,21 +208,9 @@ std::shared_ptr<ServiceMock<ServiceT>> findService(
   return service_mock;
 }
 
-template <typename ServiceT, typename NodeT>
-std::shared_ptr<ServiceMock<ServiceT>> findService(
-  const std::shared_ptr<NodeT> nodePtr,
-  const std::string & serviceName)
-{
-  const char * namePtr = serviceName.c_str();
-  if (!serviceName.empty() && serviceName[0] == '/') {
-    namePtr++;
-  }
-  return findService<ServiceT>(nodePtr->get_fully_qualified_name(), namePtr);
-}
-
 }  // namespace rtest
 
-static bool operator==(const rmw_request_id_t lhs, const rmw_request_id_t rhs)
+[[maybe_unused]] static bool operator==(const rmw_request_id_t lhs, const rmw_request_id_t rhs)
 {
   const bool arrays_equal = std::equal(
     std::begin(lhs.writer_guid),

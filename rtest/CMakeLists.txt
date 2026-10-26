@@ -4,6 +4,8 @@ project(rtest
   VERSION 0.2.0
 )
 
+option(ENABLE_CLANG_TIDY "Enable clang-tidy tests" OFF)
+
 # Detect ROS distribution
 if(NOT DEFINED ROS_DISTRO_TARGET)
   if(DEFINED ENV{ROS_DISTRO})
@@ -15,15 +17,15 @@ endif()
 message(STATUS "Building Rtest for ROS distribution: ${ROS_DISTRO_TARGET}")
 
 # Validate supported distributions
-set(SUPPORTED_DISTROS "jazzy" "kilted" "rolling")
+set(SUPPORTED_DISTROS "jazzy" "kilted" "lyrical" "rolling")
 if(NOT ROS_DISTRO_TARGET IN_LIST SUPPORTED_DISTROS)
   message(FATAL_ERROR "Unsupported ROS distribution: ${ROS_DISTRO_TARGET}. Supported: ${SUPPORTED_DISTROS}")
 endif()
 
 if(ROS_DISTRO_TARGET STREQUAL "rolling")
   message(WARNING "ROS 2 Rolling distribution detected. This is experimental support, we don't guarantee that rolling will work correctly.")
-  # Falling back to kilted distro
-  set(ROS_DISTRO_TARGET "kilted")
+  # Falling back to lyrical distro
+  set(ROS_DISTRO_TARGET "lyrical")
 endif()
 
 # Define distribution-specific version number
@@ -31,6 +33,8 @@ if(ROS_DISTRO_TARGET STREQUAL "jazzy")
   set(ROS_VERSION_NUMBER 24)
 elseif(ROS_DISTRO_TARGET STREQUAL "kilted")
   set(ROS_VERSION_NUMBER 25)
+elseif(ROS_DISTRO_TARGET STREQUAL "lyrical")
+  set(ROS_VERSION_NUMBER 26)
 else()
   message(FATAL_ERROR "No ROS version number defined for distribution: ${ROS_DISTRO_TARGET}")
 endif()
@@ -48,7 +52,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-find_package(gmock_vendor REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(GTest CONFIG REQUIRED COMPONENTS GTest GMock)
 find_package(rcl_action REQUIRED)
@@ -89,10 +92,11 @@ target_link_libraries(rtest_common PUBLIC
   rcl_action::rcl_action
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
+  GTest::gmock
 )
 
 ament_export_dependencies(
-  rclcpp rclcpp_action rcl_action gmock_vendor
+  rclcpp rclcpp_action rcl_action GTest
 )
 
 # Publisher mock library
@@ -244,16 +248,29 @@ install(DIRECTORY cmake/
                        PATTERN "*.cmake.in"
                        )
 
+set(_rtest_export_targets
+  rtest_common
+  subscription_mock
+  publisher_mock
+  service_mock
+  service_client_mock
+  timer_mock
+  action_server_mock
+  action_client_mock
+)
+
+# Mark exported include dirs as NO_SYSTEM: clang-tidy skips -isystem headers,
+# but release installs should stay SYSTEM so downstream compilers do not warn
+# on rtest internals.
+if(ENABLE_CLANG_TIDY)
+  foreach(_t IN LISTS _rtest_export_targets)
+    set_property(TARGET ${_t} PROPERTY EXPORT_NO_SYSTEM TRUE)
+  endforeach()
+endif()
+
 install(
   TARGETS
-    rtest_common
-    subscription_mock
-    publisher_mock
-    service_mock
-    service_client_mock
-    timer_mock
-    action_server_mock
-    action_client_mock
+    ${_rtest_export_targets}
   EXPORT ${PROJECT_NAME}_targets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -264,11 +281,9 @@ ament_export_targets(${PROJECT_NAME}_targets HAS_LIBRARY_TARGET)
 ament_export_dependencies(rclcpp rclcpp_action rcl_action)
 
 if(BUILD_TESTING)
-  # Option to enable clang-tidy tests (default: disabled)
-  option(ENABLE_CLANG_TIDY "Enable clang-tidy tests (can be time-consuming)" OFF)
   if(ENABLE_CLANG_TIDY)
     find_package(ament_lint_auto REQUIRED)
-    find_package(ament_cmake_clang_tidy REQUIRED)
+    find_package(ament_clang_tidy REQUIRED)
     set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.clang-tidy)
     ament_lint_auto_find_test_dependencies()
     # Exclude other distribution folders from linting/coverage
@@ -281,6 +296,12 @@ if(BUILD_TESTING)
     find_package(ament_cmake_copyright REQUIRED)
     ament_copyright()
   endif()
+
+  find_package(ament_cmake_gmock REQUIRED)
+  find_package(example_interfaces REQUIRED)
+  find_package(std_msgs REQUIRED)
+  find_package(std_srvs REQUIRED)
+  add_subdirectory(test)
 endif()
 
 ament_package(

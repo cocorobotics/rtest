@@ -37,11 +37,6 @@
 
 #include <array>
 
-#define TEST_TOOLS_SMART_PTR_DEFINITIONS(...) \
-  __RCLCPP_SHARED_PTR_ALIAS(__VA_ARGS__)      \
-  __RCLCPP_WEAK_PTR_ALIAS(__VA_ARGS__)        \
-  __RCLCPP_UNIQUE_PTR_ALIAS(__VA_ARGS__)
-
 namespace rclcpp_action
 {
 
@@ -89,7 +84,7 @@ public:
   using Feedback = typename ActionT::Feedback;
   using Result = typename ActionT::Result;
 
-  TEST_TOOLS_SMART_PTR_DEFINITIONS(GoalHandleMock<ActionT>)
+  RCLCPP_SMART_PTR_ALIASES_ONLY(GoalHandleMock<ActionT>)
 
   GoalHandleMock(std::shared_ptr<const Goal> goal) : rclcpp_action::ServerGoalHandle<ActionT>(goal)
   {
@@ -112,7 +107,7 @@ template <typename ActionT>
 class Server : public ServerBase, public std::enable_shared_from_this<Server<ActionT>>
 {
 public:
-  TEST_TOOLS_SMART_PTR_DEFINITIONS(Server<ActionT>)
+  RCLCPP_SMART_PTR_ALIASES_ONLY(Server<ActionT>)
 
   using GoalCallback =
     std::function<GoalResponse(const GoalUUID &, std::shared_ptr<const typename ActionT::Goal>)>;
@@ -128,11 +123,11 @@ public:
     GoalCallback handle_goal,
     CancelCallback handle_cancel,
     AcceptedCallback handle_accepted)
-  : node_base_(node_base),
-    action_name_(name),
-    handle_goal_(handle_goal),
+  : handle_goal_(handle_goal),
     handle_cancel_(handle_cancel),
-    handle_accepted_(handle_accepted)
+    handle_accepted_(handle_accepted),
+    node_base_(node_base),
+    action_name_(name)
   {
     (void)node_clock;
     (void)node_logging;
@@ -143,12 +138,12 @@ public:
       });
   }
 
-  ~Server() { rtest::StaticMocksRegistry::instance().removeLazyInitServer(this); }
+  ~Server() override { rtest::StaticMocksRegistry::instance().removeLazyInitServer(this); }
 
   void post_init_setup()
   {
     rtest::StaticMocksRegistry::instance().registerActionServer<ActionT>(
-      node_base_->get_fully_qualified_name(), action_name_, this->shared_from_this());
+      node_base_->get_shared_rcl_node_handle(), action_name_, this->shared_from_this());
   }
 
   GoalCallback handle_goal_;
@@ -196,7 +191,7 @@ public:
   }
   ~ActionServerMock() { StaticMocksRegistry::instance().detachMock(server_); }
 
-  TEST_TOOLS_SMART_PTR_DEFINITIONS(ActionServerMock<ActionT>)
+  RCLCPP_SMART_PTR_ALIASES_ONLY(ActionServerMock<ActionT>)
 
   GoalCallback goal_callback;
   CancelCallback cancel_callback;
@@ -206,14 +201,16 @@ private:
   rclcpp_action::Server<ActionT> * server_{nullptr};
 };
 
-template <typename ActionT>
+template <typename ActionT, typename NodeT>
 std::shared_ptr<ActionServerMock<ActionT>> findActionServer(
-  const std::string & fullyQualifiedNodeName,
+  const std::shared_ptr<NodeT> & node,
   const std::string & actionName)
 {
   std::shared_ptr<ActionServerMock<ActionT>> server_mock{};
   auto server_base =
-    StaticMocksRegistry::instance().getActionServer(fullyQualifiedNodeName, actionName).lock();
+    StaticMocksRegistry::instance()
+      .getActionServer(node->get_node_base_interface()->get_shared_rcl_node_handle(), actionName)
+      .lock();
 
   if (server_base) {
     if (StaticMocksRegistry::instance().getMock(server_base.get()).lock()) {
@@ -233,12 +230,5 @@ std::shared_ptr<rclcpp_action::GoalHandleMock<ActionT>> createMockGoalHandle(
   return std::make_shared<rclcpp_action::GoalHandleMock<ActionT>>(goal);
 }
 
-template <typename ActionT, typename NodeT>
-std::shared_ptr<ActionServerMock<ActionT>> findActionServer(
-  const std::shared_ptr<NodeT> & node,
-  const std::string & actionName)
-{
-  return findActionServer<ActionT>(node->get_fully_qualified_name(), actionName);
-}
 }  // namespace experimental
 }  // namespace rtest

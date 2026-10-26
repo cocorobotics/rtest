@@ -25,7 +25,6 @@
 #include <rtest/test_clock.hpp>
 
 using namespace std::chrono_literals;
-using ::testing::_;
 
 class TimerNode : public rclcpp::Node
 {
@@ -48,6 +47,22 @@ public:
 private:
   std::vector<rclcpp::TimerBase::SharedPtr> timers_;
 };
+
+TEST(ClockTests, OverloadedConstructors)
+{
+  auto node = std::make_shared<TimerNode>();
+  std::shared_ptr<TimerNode> invalid_node{};
+  // TestClock(const std::shared_ptr<NodeT> & node)
+  EXPECT_NO_THROW(rtest::TestClock{node});
+  EXPECT_THROW(rtest::TestClock{invalid_node}, std::invalid_argument);
+  // TestClock(TestClockNodeInterface iface)
+  EXPECT_NO_THROW(rtest::TestClock{*node});
+  // TriggeringTestClock(const std::shared_ptr<NodeT> & node)
+  EXPECT_NO_THROW(rtest::TriggeringTestClock{node});
+  EXPECT_THROW(rtest::TriggeringTestClock{invalid_node}, std::invalid_argument);
+  // TriggeringTestClock(TestClockNodeInterface iface)
+  EXPECT_NO_THROW(rtest::TriggeringTestClock{*node});
+}
 
 TEST(ClockTests, WhenTheTimeIsMovedByTimerPeriodCallbackShouldBeExecuted)
 {

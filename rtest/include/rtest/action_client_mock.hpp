@@ -42,11 +42,6 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp_action/exceptions.hpp"
 
-#define TEST_TOOLS_SMART_PTR_DEFINITIONS(...) \
-  __RCLCPP_SHARED_PTR_ALIAS(__VA_ARGS__)      \
-  __RCLCPP_WEAK_PTR_ALIAS(__VA_ARGS__)        \
-  __RCLCPP_UNIQUE_PTR_ALIAS(__VA_ARGS__)
-
 // Forward declarations
 namespace rtest
 {
@@ -146,7 +141,7 @@ template <typename ActionT>
 class Client : public ClientBase, public std::enable_shared_from_this<Client<ActionT>>
 {
 public:
-  TEST_TOOLS_SMART_PTR_DEFINITIONS(Client<ActionT>)
+  RCLCPP_SMART_PTR_ALIASES_ONLY(Client<ActionT>)
   using Goal = typename ActionT::Goal;
   using Feedback = typename ActionT::Feedback;
   using Result = typename ActionT::Result;
@@ -183,9 +178,23 @@ public:
     rclcpp::node_interfaces::NodeGraphInterface::SharedPtr node_graph,
     rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr node_logging,
     const std::string & action_name,
-    const rcl_action_client_options_t & options)
+    const rcl_action_client_options_t & options
+#if RTEST_ROS_VERSION >= RTEST_ROS_LYRICAL
+    ,
+    bool enable_feedback_msg_optimization = false
+#endif
+    )
   :
-#if RTEST_ROS_VERSION >= RTEST_ROS_KILTED
+#if RTEST_ROS_VERSION >= RTEST_ROS_LYRICAL
+    ClientBase(
+      node_base,
+      node_graph,
+      node_logging,
+      action_name,
+      rosidl_typesupport_cpp::get_action_type_support_handle<ActionT>(),
+      options,
+      enable_feedback_msg_optimization),
+#elif RTEST_ROS_VERSION >= RTEST_ROS_KILTED
     ClientBase(
       node_base,
       node_graph,
@@ -206,15 +215,18 @@ public:
       });
   }
 
-  ~Client() { rtest::StaticMocksRegistry::instance().removeLazyInitClient(this); }
+  ~Client() override { rtest::StaticMocksRegistry::instance().removeLazyInitClient(this); }
 
   void post_init_setup()
   {
     rtest::StaticMocksRegistry::instance().registerActionClient<ActionT>(
-      node_base_->get_fully_qualified_name(), action_name_, this->shared_from_this());
+      node_base_->get_shared_rcl_node_handle(), action_name_, this->shared_from_this());
   }
-
+#if RTEST_ROS_VERSION <= RTEST_ROS_JAZZY
+  bool action_server_is_ready() const override
+#else
   bool action_server_is_ready() const
+#endif
   {
     auto mock = rtest::StaticMocksRegistry::instance().getMock(const_cast<Client *>(this)).lock();
     if (mock) {
@@ -224,7 +236,7 @@ public:
     return false;
   }
 
-  std::shared_future<WrappedResult> async_get_result(
+  std::shared_future<WrappedResult> async_get_result(  // NOLINT(clang-diagnostic-overloaded-virtual)
     typename GoalHandle::SharedPtr & goal_handle,
     ResultCallback result_callback = nullptr)
   {
@@ -244,7 +256,8 @@ public:
     return promise.get_future().share();
   }
 
-  std::shared_future<typename GoalHandle::SharedPtr> async_send_goal(
+  std::shared_future<typename GoalHandle::SharedPtr>
+  async_send_goal(  // NOLINT(clang-diagnostic-overloaded-virtual)
     const Goal & goal,
     const SendGoalOptions & options)
   {
@@ -260,7 +273,8 @@ public:
     return makeClientGoalHandleFuture<ActionT>(nullptr);  // reject goal by default
   }
 
-  std::shared_future<typename CancelResponse::SharedPtr> async_cancel_all_goals(
+  std::shared_future<typename CancelResponse::SharedPtr>
+  async_cancel_all_goals(  // NOLINT(clang-diagnostic-overloaded-virtual)
     CancelCallback cancel_callback = nullptr)
   {
     auto mock = rtest::StaticMocksRegistry::instance().getMock(this).lock();
@@ -276,7 +290,8 @@ public:
     return promise.get_future().share();
   }
 
-  std::shared_future<typename CancelResponse::SharedPtr> async_cancel_goal(
+  std::shared_future<typename CancelResponse::SharedPtr>
+  async_cancel_goal(  // NOLINT(clang-diagnostic-overloaded-virtual)
     typename GoalHandle::SharedPtr goal_handle,
     CancelCallback cancel_callback = nullptr)
   {
@@ -425,7 +440,7 @@ public:
 
   explicit ActionClientMock(rclcpp_action::ClientBase * client) : client_(client) {}
   ~ActionClientMock() { StaticMocksRegistry::instance().detachMock(client_); }
-  TEST_TOOLS_SMART_PTR_DEFINITIONS(ActionClientMock<ActionT>)
+  RCLCPP_SMART_PTR_ALIASES_ONLY(ActionClientMock<ActionT>)
 
   MOCK_METHOD(
     std::shared_future<GoalHandleSharedPtr>,
@@ -491,14 +506,16 @@ private:
   rclcpp_action::ClientBase * client_{nullptr};
 };
 
-template <typename ActionT>
+template <typename ActionT, typename NodeT>
 std::shared_ptr<ActionClientMock<ActionT>> findActionClient(
-  const std::string & fullyQualifiedNodeName,
+  const std::shared_ptr<NodeT> & node,
   const std::string & actionName)
 {
   std::shared_ptr<ActionClientMock<ActionT>> client_mock{};
   auto client_base =
-    StaticMocksRegistry::instance().getActionClient(fullyQualifiedNodeName, actionName).lock();
+    StaticMocksRegistry::instance()
+      .getActionClient(node->get_node_base_interface()->get_shared_rcl_node_handle(), actionName)
+      .lock();
   if (client_base) {
     if (StaticMocksRegistry::instance().getMock(client_base.get()).lock()) {
       std::cerr << "WARNING: ActionClientMock already attached\n";
@@ -508,14 +525,6 @@ std::shared_ptr<ActionClientMock<ActionT>> findActionClient(
     }
   }
   return client_mock;
-}
-
-template <typename ActionT, typename NodeT>
-std::shared_ptr<ActionClientMock<ActionT>> findActionClient(
-  const std::shared_ptr<NodeT> & node,
-  const std::string & actionName)
-{
-  return findActionClient<ActionT>(node->get_fully_qualified_name(), actionName);
 }
 
 // Expose rclcpp_action::makeClientGoalHandle<ActionT> in the rtest namespace

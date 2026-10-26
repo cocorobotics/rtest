@@ -23,7 +23,6 @@ if(RTEST_BUILD_EXAMPLES)
   find_package(rtest_examples_interfaces REQUIRED)
   find_package(std_msgs REQUIRED)
   find_package(std_srvs REQUIRED)
-  find_package(GTest CONFIG REQUIRED COMPONENTS GTest GMock)
   find_package(Threads REQUIRED)
 
   # Publisher component
@@ -133,6 +132,7 @@ if(RTEST_BUILD_EXAMPLES)
   # Manual/static Node composition
   add_executable(manual_composition src/manual_composition.cpp)
   target_link_libraries(manual_composition
+    rclcpp::rclcpp
     publisher_component
     subscriber_component
     service_provider_component
@@ -141,7 +141,6 @@ if(RTEST_BUILD_EXAMPLES)
     action_client_component
     ${cpp_typesupport_target}
   )
-  target_link_libraries(manual_composition rclcpp::rclcpp)
 
   install(TARGETS
     publisher_component

@@ -1,4 +1,4 @@
-This document is a declaration of software quality for the `rtest` package, based on the guidelines in [REP-2004](https://www.ros.org/reps/rep-2004.html).
+This document is a declaration of software quality for the `rtest` package, based on the guidelines in [REP-2004](https://reps.openrobotics.org/rep-2004/).
 
 # `rtest` Quality Declaration
 
@@ -56,7 +56,7 @@ All pull request will be peer-reviewed, check [ROS 2 Developer Guide](https://do
 
 ### Continuous Integration [2.iv]
 
-All pull request must pass CI on all [tier 1 platforms](https://www.ros.org/reps/rep-2000.html#support-tiers)
+All pull request must pass CI on all [tier 1 platforms](https://reps.openrobotics.org/rep-2000/#support-tiers)
 
 ###  Documentation Policy [2.v]
 
@@ -76,7 +76,7 @@ All pull requests must resolve related documentation changes before merging.
 
 The license for `rtest` is Apache 2.0, and a summary is in each source file, the type is declared in the [`package.xml`](./package.xml) manifest file, and a full copy of the license is in the [`LICENSE`](./LICENSE) file.
 
-There is an automated test which runs a linter that ensures each file has a license statement. [Here](https://github.com/Beam-and-Spyrosoft/rtest/actions/workflows/ros2-pull-request.yml)
+There is an automated test which runs a linter that ensures each file has a license statement. [Here](https://github.com/Beam-and-Spyrosoft/rtest/actions/workflows/ci.yml)
 can be found a list with the latest results of the various linters being run on the package.
 
 ### Copyright Statements [3.iv]
@@ -84,7 +84,7 @@ can be found a list with the latest results of the various linters being run on 
 The copyright holders each provide a statement of copyright in each source code file in `rtest`.
 
 There is an automated test which runs a linter that ensures each file has at least one copyright statement. Latest linter result report can be seen
-[here](https://github.com/Beam-and-Spyrosoft/rtest/actions/workflows/ros2-pull-request.yml).
+[here](https://github.com/Beam-and-Spyrosoft/rtest/actions/workflows/ci.yml).
 
 ### Package Quality Status [3.v]
 
@@ -98,7 +98,7 @@ In addition to the public declaration via `package.xml`:
 
 ### Feature Testing [4.i]
 
-[TODO] Implement unit tests for each framework feature and add coverage measurment.
+[TODO] Implement unit tests for each framework feature and add coverage measurement.
 
 ~~Each feature in `rtest` has corresponding tests which simulate typical usage, and they are located in the [`test`](https://github.com/Beam-and-Spyrosoft/rtest/tree/main/test) directory.~~
 ~~New features are required to have tests before being added.~~
@@ -124,11 +124,11 @@ This includes:
 
 Changes are required to make a best effort to keep or increase coverage before being accepted, but decreases are allowed if properly justified and accepted by reviewers.
 
-Current coverage statistics can be viewed [here](https://github.com/Beam-and-Spyrosoft/rtest/actions/workflows/ros2-pull-request.yml).
+Current coverage statistics can be viewed [here](https://beam-and-spyrosoft.github.io/rtest/coverage/).
 
 ### Performance [4.iv]
 
-`rtest` doesn't have explicit performace tests. However it is assumed using the `rtest` significantly increases unit tests performace in comparison to unit tests that invole ROS 2 middleware and execution model.
+`rtest` doesn't have explicit performance tests. However it is assumed using the `rtest` significantly increases unit tests performance in comparison to unit tests that involve ROS 2 middleware and execution model.
 
 ### Linters and Static Analysis [4.v]
 
@@ -172,13 +172,13 @@ It is **Quality Level 1**, see its [Quality Declaration document](https://github
 
 [TODO] Add support for all tier 1 platforms and include them in CI build.
 
-`rtest` supports all of the tier 1 platforms as described in [REP-2000](https://www.ros.org/reps/rep-2000.html#support-tiers), and tests each change against all of them.
+`rtest` supports all of the tier 1 platforms as described in [REP-2000](https://reps.openrobotics.org/rep-2000/#support-tiers), and tests each change against all of them.
 
-Currently build status can be seen [here](https://github.com/Beam-and-Spyrosoft/rtest/actions/workflows/ros2-pull-request.yml?query=branch%3Amain)
+Currently build status can be seen [here](https://github.com/Beam-and-Spyrosoft/rtest/actions/workflows/ci.yml?query=branch%3Amain)
 
 ## Vulnerability Disclosure Policy [7.i]
 
-This package conforms to the Vulnerability Disclosure Policy in [REP-2006](https://www.ros.org/reps/rep-2006.html).
+This package conforms to the Vulnerability Disclosure Policy in [REP-2006](https://reps.openrobotics.org/rep-2006/).
 More details can be found in [`SECURITY.md`](./SECURITY.md) file
 
 # Current status Summary

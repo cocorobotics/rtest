@@ -5,8 +5,9 @@ log/
 .colcon/
 
 # Pixi build artifacts
-pixi.lock
-.pixicache/
+.pixi
+.ccache/
+coverage/
 
 # General IDE and editor files
 *.swp
@@ -34,6 +35,7 @@ compile_commands.json
 *.orig
 *.rej
 *.conda
+.cache
 
 # Documentation artifacts
 rtest/doc/_build

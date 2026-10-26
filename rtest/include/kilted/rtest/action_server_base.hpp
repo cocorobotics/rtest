@@ -22,6 +22,8 @@
 #include <functional>
 #include "rclcpp/waitable.hpp"
 #include "rclcpp_action/types.hpp"
+#include "rclcpp/clock.hpp"
+#include "rclcpp/qos.hpp"
 
 namespace rclcpp_action
 {
@@ -50,7 +52,7 @@ public:
     Expired,
   };
   ServerBase() = default;
-  virtual ~ServerBase() = default;
+  ~ServerBase() override = default;
 
   virtual void publish_status() {}
   virtual void notify_goal_terminal_state() {}

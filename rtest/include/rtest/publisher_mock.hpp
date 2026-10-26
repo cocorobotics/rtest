@@ -79,7 +79,7 @@ public:
    */
   MOCK_METHOD(void, publish_msg, (const MessageT & msg));
 
-  virtual void publish(const MessageT & msg) { publish(msg); }
+  virtual void publish(const MessageT & msg) { publish_msg(msg); }
 
   /**
    * @brief Set the fake subscriptions count.

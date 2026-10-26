@@ -78,11 +78,14 @@ public:
 
   MOCK_METHOD(void, send_response, (rmw_request_id_t &, typename ServiceT::Response &), ());
 
-  std::shared_ptr<typename ServiceT::Response> handle_request(
+  void handle_request(
     std::shared_ptr<rmw_request_id_t> request_header,
     std::shared_ptr<typename ServiceT::Request> request)
   {
-    return service_->handle_request(request_header, request);
+    auto response = service_->handle_request(request_header, request);
+    if (response) {
+      send_response(*request_header, *response);
+    }
   }
 
 private:

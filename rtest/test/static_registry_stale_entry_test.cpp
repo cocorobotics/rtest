@@ -105,7 +105,7 @@ TEST_F(StaticRegistryStaleEntry, FindPublisherReturnsNewEntityAfterPreviousDestr
 
   std_msgs::msg::String msg;
   msg.data = "from_current";
-  EXPECT_CALL(*found_mock, publish(msg)).Times(1);
+  EXPECT_CALL(*found_mock, publish_msg(msg)).Times(1);
   current_pub->publish(msg);
 }
 
@@ -125,12 +125,12 @@ TEST_F(StaticRegistryStaleEntry, FindPublisherReturnsCurrentEntityWhenPreviousNo
 
   std_msgs::msg::String msg;
   msg.data = "from_current";
-  EXPECT_CALL(*found_mock, publish(msg)).Times(1);
+  EXPECT_CALL(*found_mock, publish_msg(msg)).Times(1);
   current_pub->publish(msg);
 
   auto previous_again = rtest::findPublisher<std_msgs::msg::String>(previous, "topic");
   ASSERT_TRUE(previous_again);
-  EXPECT_CALL(*previous_again, publish(msg)).Times(1);
+  EXPECT_CALL(*previous_again, publish_msg(msg)).Times(1);
   previous_pub->publish(msg);
 }
 

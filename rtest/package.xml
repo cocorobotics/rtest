@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>rtest</name>
-  <version>0.2.0</version>
+  <version>0.2.5</version>
   <description>This framework enables writing reliable, fully repeatable tests for C++ ROS 2 implementations.</description>
   <maintainer email="gc19@beam.global">Gary Cross</maintainer>
   <maintainer email="slawomir.cielepak@gmail.com">Sławomir Cielepak</maintainer>
@@ -14,19 +14,22 @@
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
-  <depend>gmock_vendor</depend>
   <depend>action_msgs</depend>
   <depend>rcl</depend>
   <depend>rcl_action</depend>
 
   <build_depend>ros_environment</build_depend>
-  <build_depend>libboost-dev</build_depend>
-  <build_depend>libgmock-dev</build_depend>
+  <depend>libboost-dev</depend>
+  <depend>libgmock-dev</depend>
 
   <test_depend>ament_clang_tidy</test_depend>
   <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+  <test_depend>example_interfaces</test_depend>
+  <test_depend>std_msgs</test_depend>
+  <test_depend>std_srvs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

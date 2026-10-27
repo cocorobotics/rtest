@@ -5,67 +5,55 @@ on:
     - cron: "0 0 * * *" # Nightly at midnight UTC
   workflow_dispatch: # On-demand trigger
 
-jobs:
-  clang-tidy-check:
-    name: Static Code Analysis with clang-tidy
+permissions:
+  contents: read
 
+jobs:
+  clang-tidy:
+    name: "clang-tidy (${{ matrix.environment }})"
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04]
-        arch: [amd64]
-    runs-on: ${{ matrix.os }}
-    container:
-      image: osrf/ros:jazzy-desktop
+        environment: [jazzy, kilted, lyrical]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 500M
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Pixi
+        uses: prefix-dev/setup-pixi@v0.10.2
         with:
-          fetch-depth: 0
+          pixi-version: v0.81.0
+          environments: ${{ matrix.environment }}
+          locked: true
+          cache: true
+          cache-write: false
 
-      - name: Install build tools
-        run: |
-          apt-get update
-          apt-get install -y python3-colcon-common-extensions python3-rosdep python3-vcstool git \
-          libboost-all-dev libgmock-dev ros-jazzy-ament-clang-tidy
-
-      - name: Update rosdep database
-        run: rosdep update || true
-
-      - name: Install dependencies
-        run: |
-          rosdep install --from-paths . --ignore-src -r -y
-
-      - name: Build project and generate compile_commands.json
-        shell: bash
-        run: |
-          . /opt/ros/jazzy/setup.bash
-          colcon build --event-handlers console_cohesion+ --cmake-args -DRTEST_BUILD_EXAMPLES=On -DCMAKE_EXPORT_COMPILE_COMMANDS=On
-
-      - name: Run clang-tidy
-        shell: bash
-        run: |
-          . /opt/ros/jazzy/setup.bash
-          ament_clang_tidy --config .clang-tidy --xunit-file build/clang-tidy-report.xml build/compile_commands.json --jobs $(nproc)
-
-      - name: Upload clang-tidy report
-        if: ${{ !env.ACT && always() }}
-        uses: actions/upload-artifact@v4
+      # Read-only: reuse the linux-64 clang ccache that CI saves on main, so the
+      # clang build this task depends on is mostly cache hits.
+      - name: Restore ccache
+        uses: actions/cache/restore@v6
         with:
-          name: clang-tidy-report
-          path: build/clang-tidy-report.xml
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-linux-64-${{ matrix.environment }}-clang-${{ github.run_id }}
+          restore-keys: |
+            ccache-linux-64-${{ matrix.environment }}-clang-
+
+      - name: Run clang-tidy analysis
+        shell: bash
+        run: pixi run -e ${{ matrix.environment }} clang-tidy 2>&1 | tee clang-tidy-${{ matrix.environment }}.log
+
+      - name: Upload clang-tidy log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: clang-tidy-log-${{ matrix.environment }}
+          path: clang-tidy-${{ matrix.environment }}.log
           if-no-files-found: warn
-
-      - name: Check analysis status
-        if: always()
-        run: |
-          failures=$(grep 'failures' build/clang-tidy-report.xml | sed -E 's/.*failures="([0-9]+)".*/\1/' | head -n 1)
-          failures=${failures:-0} # If nothing was found, set failures to 0
-
-          if [ "$failures" -gt 1 ]; then
-            echo "❌ Static analysis has found ${failures} issues. Please check the report."
-            exit 1
-          else
-            echo "✅ Static analysis clear, no issues found"
-          fi
-

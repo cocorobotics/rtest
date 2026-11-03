@@ -121,7 +121,7 @@ TEST_F(ForkExtensionsTest, ServiceSendResponseIsForwardedToMock)
   service->send_response(header, response);
 }
 
-TEST_F(ForkExtensionsTest, MockHandleRequestReturnsResponseWithoutSending)
+TEST_F(ForkExtensionsTest, MockHandleRequestSendsImmediateResponse)
 {
   auto service = node_->create_service<SetBool>(
     "service",
@@ -133,10 +133,25 @@ TEST_F(ForkExtensionsTest, MockHandleRequestReturnsResponseWithoutSending)
 
   auto request = std::make_shared<SetBool::Request>();
   request->data = true;
+  EXPECT_CALL(
+    *mock, send_response(
+      ::testing::_, ::testing::Field(&SetBool::Response::success, true))).Times(1);
+  mock->handle_request(std::make_shared<rmw_request_id_t>(), request);
+}
+
+TEST_F(ForkExtensionsTest, MockHandleRequestDoesNotSendDeferredResponse)
+{
+  auto service = node_->create_service<SetBool>(
+    "service",
+    [](
+      const std::shared_ptr<rclcpp::Service<SetBool>>,
+      const std::shared_ptr<rmw_request_id_t>,
+      const std::shared_ptr<SetBool::Request>) {});
+  auto mock = rtest::findService<SetBool>(node_, "service");
+  ASSERT_TRUE(mock);
+
   EXPECT_CALL(*mock, send_response(::testing::_, ::testing::_)).Times(0);
-  auto response = mock->handle_request(std::make_shared<rmw_request_id_t>(), request);
-  ASSERT_TRUE(response);
-  EXPECT_TRUE(response->success);
+  mock->handle_request(std::make_shared<rmw_request_id_t>(), std::make_shared<SetBool::Request>());
 }
 
 }  // namespace

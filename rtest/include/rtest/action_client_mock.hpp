@@ -114,6 +114,8 @@ public:
   void set_status(int8_t status) { status_ = status; }
   void set_goal_id(const GoalUUID & goal_id) { goal_id_ = goal_id; }
   void set_goal_stamp(const rclcpp::Time & stamp) { time_stamp_ = stamp; }
+  void set_feedback_callback(FeedbackCallback callback) { feedback_callback = std::move(callback); }
+  void set_result_callback(ResultCallback callback) { result_callback = std::move(callback); }
 
 private:
   GoalUUID goal_id_;

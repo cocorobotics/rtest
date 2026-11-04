@@ -36,9 +36,9 @@ TEST_F(ServiceClientTest, WhenServiceNotAvailable_ThenSetStateFails)
   ASSERT_TRUE(client);
 
   // Set up expectation that service is not available
-  EXPECT_CALL(*client, service_is_ready()).WillOnce(::testing::Return(false));
+  EXPECT_CALL(*client, service_is_ready_mocked()).WillOnce(::testing::Return(false));
 
-  EXPECT_CALL(*client, async_send_request(::testing::_)).Times(0);
+  EXPECT_CALL(*client, async_send_request_mocked(::testing::_)).Times(0);
 
   // Attempt to set state should fail
   EXPECT_FALSE(node->setState(true));
@@ -63,9 +63,9 @@ TEST_F(ServiceClientTest, WhenServiceCallSucceeds_ThenSetStateSucceeds)
   response->message = "State updated successfully";
 
   // Set up expectations
-  EXPECT_CALL(*client, service_is_ready()).WillOnce(::testing::Return(true));
+  EXPECT_CALL(*client, service_is_ready_mocked()).WillOnce(::testing::Return(true));
 
-  EXPECT_CALL(*client, async_send_request(::testing::_))
+  EXPECT_CALL(*client, async_send_request_mocked(::testing::_))
     .WillOnce([response](std::shared_ptr<std_srvs::srv::SetBool::Request>) {
       // Create a new promise and future for each call
       std::promise<std::shared_ptr<std_srvs::srv::SetBool::Response>> promise;
@@ -100,9 +100,9 @@ TEST_F(ServiceClientTest, WhenServiceCallFails_ThenSetStateFails)
   response->message = "Failed to update state";
 
   // Set up expectations
-  EXPECT_CALL(*client, service_is_ready()).WillOnce(::testing::Return(true));
+  EXPECT_CALL(*client, service_is_ready_mocked()).WillOnce(::testing::Return(true));
 
-  EXPECT_CALL(*client, async_send_request(::testing::_))
+  EXPECT_CALL(*client, async_send_request_mocked(::testing::_))
     .WillOnce([response](std::shared_ptr<std_srvs::srv::SetBool::Request>) {
       // Create a new promise and future for each call
       std::promise<std::shared_ptr<std_srvs::srv::SetBool::Response>> promise;
@@ -130,9 +130,9 @@ TEST_F(ServiceClientTest, WhenServiceCallWithCallback_ThenSetStateSucceeds)
   response->success = true;
   response->message = "State updated with callback successfully";
 
-  EXPECT_CALL(*client, service_is_ready()).WillOnce(::testing::Return(true));
+  EXPECT_CALL(*client, service_is_ready_mocked()).WillOnce(::testing::Return(true));
 
-  EXPECT_CALL(*client, async_send_request_with_callback(::testing::_, ::testing::_))
+  EXPECT_CALL(*client, async_send_request_with_callback_mocked(::testing::_, ::testing::_))
     .WillOnce([response](auto request, auto callback) {
       (void)request;
       std::promise<std::shared_ptr<std_srvs::srv::SetBool::Response>> promise;
@@ -166,9 +166,10 @@ TEST_F(ServiceClientTest, WhenServiceCallWithRequestCallback_ThenSetStateSucceed
   response->success = true;
   response->message = "State updated with request callback successfully";
 
-  EXPECT_CALL(*client, service_is_ready()).WillOnce(::testing::Return(true));
+  EXPECT_CALL(*client, service_is_ready_mocked()).WillOnce(::testing::Return(true));
 
-  EXPECT_CALL(*client, async_send_request_with_callback_and_request(::testing::_, ::testing::_))
+  EXPECT_CALL(
+    *client, async_send_request_with_callback_and_request_mocked(::testing::_, ::testing::_))
     .WillOnce([response](auto request, auto callback) {
       auto pair = std::make_pair(request, response);
       std::promise<decltype(pair)> promise;
@@ -201,7 +202,7 @@ TEST_F(ServiceClientTest, WhenServiceCallTimesOut_ThenPendingRequestIsRemoved)
 
   // The promise is never fulfilled, so the future never becomes ready and the call times out
   std::promise<std::shared_ptr<std_srvs::srv::SetBool::Response>> never_fulfilled;
-  EXPECT_CALL(*client, async_send_request(::testing::_))
+  EXPECT_CALL(*client, async_send_request_mocked(::testing::_))
     .WillOnce([&never_fulfilled](std::shared_ptr<std_srvs::srv::SetBool::Request>) {
       return rclcpp::ClientTypes<std_srvs::srv::SetBool>::FutureResponseAndId(
         never_fulfilled.get_future(), 42UL);
@@ -209,7 +210,7 @@ TEST_F(ServiceClientTest, WhenServiceCallTimesOut_ThenPendingRequestIsRemoved)
 
   // A timed out request must be removed from the client, otherwise rclcpp::Client keeps it
   // in memory until the client is destroyed. The test fails if the Node forgets to do it.
-  EXPECT_CALL(*client, remove_pending_request(42)).WillOnce(::testing::Return(true));
+  EXPECT_CALL(*client, remove_pending_request_mocked(42)).WillOnce(::testing::Return(true));
 
   EXPECT_FALSE(node->setStateWithTimeout(true, std::chrono::milliseconds(1)));
   EXPECT_FALSE(node->getLastCallSuccess());
@@ -226,7 +227,7 @@ TEST_F(ServiceClientTest, WhenServiceCallCompletesInTime_ThenNoPendingRequestIsR
   response->success = true;
   response->message = "State updated in time";
 
-  EXPECT_CALL(*client, async_send_request(::testing::_))
+  EXPECT_CALL(*client, async_send_request_mocked(::testing::_))
     .WillOnce([response](std::shared_ptr<std_srvs::srv::SetBool::Request>) {
       std::promise<std::shared_ptr<std_srvs::srv::SetBool::Response>> promise;
       promise.set_value(response);
@@ -235,8 +236,8 @@ TEST_F(ServiceClientTest, WhenServiceCallCompletesInTime_ThenNoPendingRequestIsR
     });
 
   // A request that received its response is already gone from the client: nothing to clean up
-  EXPECT_CALL(*client, remove_pending_request(::testing::_)).Times(0);
-  EXPECT_CALL(*client, prune_pending_requests()).Times(0);
+  EXPECT_CALL(*client, remove_pending_request_mocked(::testing::_)).Times(0);
+  EXPECT_CALL(*client, prune_pending_requests_mocked()).Times(0);
 
   EXPECT_TRUE(node->setStateWithTimeout(true, std::chrono::milliseconds(1)));
   EXPECT_EQ(node->getLastResponseMessage(), "State updated in time");
@@ -248,7 +249,7 @@ TEST_F(ServiceClientTest, WhenRequestIsPrunedWhileWaiting_ThenErrorIsHandledWith
   auto client = rtest::findServiceClient<std_srvs::srv::SetBool>(node, "/test_service");
   ASSERT_TRUE(client);
 
-  EXPECT_CALL(*client, async_send_request(::testing::_))
+  EXPECT_CALL(*client, async_send_request_mocked(::testing::_))
     .WillOnce([](std::shared_ptr<std_srvs::srv::SetBool::Request>) {
       // rclcpp::Client destroys the promise of a pruned or removed request without fulfilling it,
       // so a caller still waiting on the future gets std::future_error(broken_promise)
@@ -262,7 +263,7 @@ TEST_F(ServiceClientTest, WhenRequestIsPrunedWhileWaiting_ThenErrorIsHandledWith
     });
 
   // The request is already gone from the client, so removing it again would be a mistake
-  EXPECT_CALL(*client, remove_pending_request(::testing::_)).Times(0);
+  EXPECT_CALL(*client, remove_pending_request_mocked(::testing::_)).Times(0);
 
   bool result = true;
   EXPECT_NO_THROW(result = node->setStateWithTimeout(true, std::chrono::milliseconds(1)));
@@ -278,7 +279,7 @@ TEST_F(ServiceClientTest, WhenPendingRequestsAreCancelled_ThenClientIsPruned)
   ASSERT_TRUE(client);
 
   // The return value tells the Node how many requests were dropped
-  EXPECT_CALL(*client, prune_pending_requests()).WillOnce(::testing::Return(3));
+  EXPECT_CALL(*client, prune_pending_requests_mocked()).WillOnce(::testing::Return(3));
 
   EXPECT_EQ(node->cancelPendingRequests(), 3u);
 }
@@ -294,7 +295,7 @@ TEST_F(ServiceClientTest, WhenStaleRequestsAreDropped_ThenClientIsPrunedByAge)
   // The Node computes the cutoff from system_clock::now(), so the exact value is unknown here:
   // check that it lies between "before the call - max_age" and "during the call - max_age"
   const auto before = std::chrono::system_clock::now();
-  EXPECT_CALL(*client, prune_requests_older_than(::testing::_, ::testing::NotNull()))
+  EXPECT_CALL(*client, prune_requests_older_than_mocked(::testing::_, ::testing::NotNull()))
     .WillOnce([before, max_age](auto time_point, std::vector<int64_t> * pruned_requests) {
       EXPECT_GE(time_point, before - max_age);
       EXPECT_LE(time_point, std::chrono::system_clock::now() - max_age);

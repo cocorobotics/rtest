@@ -105,7 +105,7 @@ TEST_F(StaticRegistryStaleEntry, FindPublisherReturnsNewEntityAfterPreviousDestr
 
   std_msgs::msg::String msg;
   msg.data = "from_current";
-  EXPECT_CALL(*found_mock, publish(msg)).Times(1);
+  EXPECT_CALL(*found_mock, publish_msg(msg)).Times(1);
   current_pub->publish(msg);
 }
 
@@ -125,12 +125,12 @@ TEST_F(StaticRegistryStaleEntry, FindPublisherReturnsCurrentEntityWhenPreviousNo
 
   std_msgs::msg::String msg;
   msg.data = "from_current";
-  EXPECT_CALL(*found_mock, publish(msg)).Times(1);
+  EXPECT_CALL(*found_mock, publish_msg(msg)).Times(1);
   current_pub->publish(msg);
 
   auto previous_again = rtest::findPublisher<std_msgs::msg::String>(previous, "topic");
   ASSERT_TRUE(previous_again);
-  EXPECT_CALL(*previous_again, publish(msg)).Times(1);
+  EXPECT_CALL(*previous_again, publish_msg(msg)).Times(1);
   previous_pub->publish(msg);
 }
 
@@ -231,12 +231,12 @@ TEST_F(StaticRegistryStaleEntry, FindServiceClientReturnsCurrentEntityWhenPrevio
   auto found_mock = rtest::findServiceClient<std_srvs::srv::SetBool>(current, "test_service");
   ASSERT_TRUE(found_mock);
 
-  EXPECT_CALL(*found_mock, service_is_ready()).WillOnce(::testing::Return(true));
+  EXPECT_CALL(*found_mock, service_is_ready_mocked()).WillOnce(::testing::Return(true));
   EXPECT_TRUE(current_client->service_is_ready());
 
   auto previous_again = rtest::findServiceClient<std_srvs::srv::SetBool>(previous, "test_service");
   ASSERT_TRUE(previous_again);
-  EXPECT_CALL(*previous_again, service_is_ready()).WillOnce(::testing::Return(true));
+  EXPECT_CALL(*previous_again, service_is_ready_mocked()).WillOnce(::testing::Return(true));
   EXPECT_TRUE(previous_client->service_is_ready());
 }
 

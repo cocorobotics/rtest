@@ -58,26 +58,53 @@ public:
 
   RCLCPP_SMART_PTR_ALIASES_ONLY(ServiceClientMock<ServiceT>)
 
-  MOCK_METHOD(FutureAndRequestId, async_send_request, (typename Types::SharedRequest), ());
+  MOCK_METHOD(FutureAndRequestId, async_send_request_mocked, (typename Types::SharedRequest), ());
   MOCK_METHOD(
     SharedFutureAndRequestId,
-    async_send_request_with_callback,
+    async_send_request_with_callback_mocked,
     (typename Types::SharedRequest, typename Types::CallbackType),
     ());
   MOCK_METHOD(
     SharedFutureWithRequestAndRequestId,
-    async_send_request_with_callback_and_request,
+    async_send_request_with_callback_and_request_mocked,
     (typename Types::SharedRequest, typename Types::CallbackWithRequestType),
     ());
-  MOCK_METHOD(bool, remove_pending_request, (int64_t), ());
-  MOCK_METHOD(size_t, prune_pending_requests, (), ());
+  MOCK_METHOD(bool, service_is_ready_mocked, (), ());
+  MOCK_METHOD(bool, remove_pending_request_mocked, (int64_t), ());
+  MOCK_METHOD(size_t, prune_pending_requests_mocked, (), ());
   MOCK_METHOD(
     size_t,
-    prune_requests_older_than,
+    prune_requests_older_than_mocked,
     ((std::chrono::time_point<std::chrono::system_clock>), (std::vector<int64_t> *)),
     ());
-  MOCK_METHOD(bool, service_is_ready, (), ());
-  MOCK_METHOD(bool, wait_for_service, ((std::chrono::duration<int64_t, std::milli>)), ());
+  virtual bool service_is_ready() { return service_is_ready_mocked(); }
+  virtual FutureAndRequestId async_send_request(typename Types::SharedRequest request)
+  {
+    return async_send_request_mocked(request);
+  }
+  virtual SharedFutureWithRequestAndRequestId async_send_request_with_callback_and_request(
+    typename Types::SharedRequest request,
+    typename Types::CallbackWithRequestType callback)
+  {
+    return async_send_request_with_callback_and_request_mocked(request, callback);
+  }
+  virtual SharedFutureAndRequestId async_send_request_with_callback(
+    typename Types::SharedRequest request,
+    typename Types::CallbackType callback)
+  {
+    return async_send_request_with_callback_mocked(request, callback);
+  }
+  virtual bool remove_pending_request(int64_t request_id)
+  {
+    return remove_pending_request_mocked(request_id);
+  }
+  virtual size_t prune_pending_requests() { return prune_pending_requests_mocked(); }
+  virtual size_t prune_requests_older_than(
+    std::chrono::time_point<std::chrono::system_clock> time_point,
+    std::vector<int64_t> * pruned_requests)
+  {
+    return prune_requests_older_than_mocked(time_point, pruned_requests);
+  }
 
 private:
   rclcpp::ClientBase * client_{nullptr};
@@ -252,15 +279,15 @@ public:
     return false;
   }
 
-  bool wait_for_service(std::chrono::duration<int64_t, std::milli> timeout)
+  template <typename RepT = int64_t, typename RatioT = std::milli>
+  bool wait_for_service(
+    std::chrono::duration<RepT, RatioT> timeout = std::chrono::duration<RepT, RatioT>(-1))
   {
-    auto mock = rtest::StaticMocksRegistry::instance().getMock(this).lock();
-    if (mock) {
-      return std::static_pointer_cast<rtest::ServiceClientMock<ServiceT>>(mock)->wait_for_service(
-        timeout);
-    }
-    return false;
+    return wait_for_service_nanoseconds(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(timeout));
   }
+
+  bool wait_for_service_nanoseconds(std::chrono::nanoseconds) { return service_is_ready(); }
 
   void post_init_setup()
   {

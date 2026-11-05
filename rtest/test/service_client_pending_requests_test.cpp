@@ -95,10 +95,11 @@ TEST_F(ServiceClientPendingRequestsTest, WhenRequestTimesOut_ThenHelperRemovesIt
 
   // The promise outlives the call, so the future never becomes ready: a timed out request.
   std::promise<Types::SharedResponse> never_fulfilled;
-  EXPECT_CALL(*client_mock, async_send_request(::testing::_)).WillOnce([&never_fulfilled](auto) {
-    return Types::FutureResponseAndId(never_fulfilled.get_future(), 42);
-  });
-  EXPECT_CALL(*client_mock, remove_pending_request(42)).WillOnce(Return(true));
+  EXPECT_CALL(*client_mock, async_send_request_mocked(::testing::_))
+    .WillOnce([&never_fulfilled](auto) {
+      return Types::FutureResponseAndId(never_fulfilled.get_future(), 42);
+    });
+  EXPECT_CALL(*client_mock, remove_pending_request_mocked(42)).WillOnce(Return(true));
 
   auto response =
     CallService<Empty>(client_, std::make_shared<Empty::Request>(), std::chrono::milliseconds(1));
@@ -110,12 +111,12 @@ TEST_F(ServiceClientPendingRequestsTest, WhenRequestCompletes_ThenNothingIsRemov
   auto mock = rtest::findServiceClient<Empty>(node_, "pending_requests_service");
   ASSERT_TRUE(mock);
 
-  EXPECT_CALL(*mock, async_send_request(::testing::_)).WillOnce([](auto) {
+  EXPECT_CALL(*mock, async_send_request_mocked(::testing::_)).WillOnce([](auto) {
     std::promise<Types::SharedResponse> promise;
     promise.set_value(std::make_shared<Empty::Response>());
     return Types::FutureResponseAndId(promise.get_future(), 1);
   });
-  EXPECT_CALL(*mock, remove_pending_request(::testing::_)).Times(0);
+  EXPECT_CALL(*mock, remove_pending_request_mocked(::testing::_)).Times(0);
 
   auto response =
     CallService<Empty>(client_, std::make_shared<Empty::Request>(), std::chrono::milliseconds(1));
@@ -127,10 +128,10 @@ TEST_F(ServiceClientPendingRequestsTest, AllOverloadsForwardTheRequestId)
   auto mock = rtest::findServiceClient<Empty>(node_, "pending_requests_service");
   ASSERT_TRUE(mock);
 
-  EXPECT_CALL(*mock, remove_pending_request(1)).WillOnce(Return(true));
-  EXPECT_CALL(*mock, remove_pending_request(2)).WillOnce(Return(true));
-  EXPECT_CALL(*mock, remove_pending_request(3)).WillOnce(Return(false));
-  EXPECT_CALL(*mock, remove_pending_request(4)).WillOnce(Return(true));
+  EXPECT_CALL(*mock, remove_pending_request_mocked(1)).WillOnce(Return(true));
+  EXPECT_CALL(*mock, remove_pending_request_mocked(2)).WillOnce(Return(true));
+  EXPECT_CALL(*mock, remove_pending_request_mocked(3)).WillOnce(Return(false));
+  EXPECT_CALL(*mock, remove_pending_request_mocked(4)).WillOnce(Return(true));
 
   EXPECT_TRUE(client_->remove_pending_request(int64_t{1}));
   EXPECT_TRUE(client_->remove_pending_request(
@@ -146,7 +147,7 @@ TEST_F(ServiceClientPendingRequestsTest, PrunePendingRequestsForwardsToMock)
   auto mock = rtest::findServiceClient<Empty>(node_, "pending_requests_service");
   ASSERT_TRUE(mock);
 
-  EXPECT_CALL(*mock, prune_pending_requests()).WillOnce(Return(3));
+  EXPECT_CALL(*mock, prune_pending_requests_mocked()).WillOnce(Return(3));
 
   EXPECT_EQ(client_->prune_pending_requests(), 3u);
 }
@@ -157,7 +158,7 @@ TEST_F(ServiceClientPendingRequestsTest, PruneRequestsOlderThanForwardsTimePoint
   ASSERT_TRUE(mock);
 
   const auto time_point = std::chrono::system_clock::now();
-  EXPECT_CALL(*mock, prune_requests_older_than(time_point, nullptr)).WillOnce(Return(2));
+  EXPECT_CALL(*mock, prune_requests_older_than_mocked(time_point, nullptr)).WillOnce(Return(2));
 
   EXPECT_EQ(client_->prune_requests_older_than(time_point), 2u);
 }
@@ -168,7 +169,7 @@ TEST_F(ServiceClientPendingRequestsTest, PruneRequestsOlderThanReportsPrunedIds)
   ASSERT_TRUE(mock);
 
   const auto time_point = std::chrono::system_clock::now();
-  EXPECT_CALL(*mock, prune_requests_older_than(time_point, ::testing::NotNull()))
+  EXPECT_CALL(*mock, prune_requests_older_than_mocked(time_point, ::testing::NotNull()))
     .WillOnce(::testing::DoAll(::testing::SetArgPointee<1>(std::vector<int64_t>{5, 7}), Return(2)));
 
   std::vector<int64_t> pruned;
@@ -182,7 +183,7 @@ TEST_F(ServiceClientPendingRequestsTest, PruneRequestsOlderThanAppendsIdsToCusto
   ASSERT_TRUE(mock);
 
   const auto time_point = std::chrono::system_clock::now();
-  EXPECT_CALL(*mock, prune_requests_older_than(time_point, ::testing::NotNull()))
+  EXPECT_CALL(*mock, prune_requests_older_than_mocked(time_point, ::testing::NotNull()))
     .WillOnce(::testing::DoAll(::testing::SetArgPointee<1>(std::vector<int64_t>{5, 7}), Return(2)));
 
   // Like rclcpp, pruned ids are appended to what the vector already holds
